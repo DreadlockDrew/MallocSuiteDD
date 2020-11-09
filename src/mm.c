@@ -61,20 +61,13 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * the multi-pool allocator described in the project handout.
  */
 
-
-struct freeTableSection
-{   
-    struct memPool *head;//8 bytes hopefully
-};
-
-static struct freeTableSection**  **free_table;//Aves free_table Global Static Variable reference
+static struct memPool**  **free_table;//Aves free_table Global Static Variable reference
 static unsigned int malloc_called = 0;//0 if false non zero if true
 
 struct memPool //TODO make this static?
-{
+{   unsigned long avail;// 8 byte should come first
     struct memPool *next; // 8 byte pointer should come after prev
     struct memPool *prev; // 8 byte pointer should come after avail
-    unsigned long avail;// 8 byte should come first
 };
 
 void *malloc(size_t size)
@@ -102,8 +95,8 @@ void *malloc(size_t size)
         {
             free_table[poolNum]=sbrk(CHUNK_SIZE);
             for(int i=0;i<pools;i++)
-                {//((struct memPool*)free_table[poolNum]+i*pool_size) should cause memPool[poolNum]to point to first freshly freed block
-                    *((struct memPool*)free_table[poolNum]+i*pool_size)/*TODO will this stride 24??*/ = (struct memPool){NULL,NULL,size/*shouldnt need to be masked*/};//TODO ask a TA if this actually even would work
+                {//mempool***
+                    *(*free_table[poolNum]+i*pool_size)=(struct memPool){size,NULL,NULL/*shouldnt need to be masked*/}; 
                     if(i!=0){*((struct memPool*)free_table[poolNum]+i*pool_size)->prev=*((struct memPool*)free_table[poolNum]+(i-1)*pool_size);}
                     if(i!=pools-1){*((struct memPool*)free_table[poolNum]+i*pool_size)->next=*((struct memPool*)free_table[poolNum]+(i+1)*pool_size);}
                 }
