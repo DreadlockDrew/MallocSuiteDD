@@ -1,7 +1,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <math.h>
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -62,7 +61,7 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * the multi-pool allocator described in the project handout.
  */
 
-static void**free_table;//Aves free_table Global Static Variable reference
+static void**  *free_table;//Aves free_table Global Static Variable reference
 static unsigned int malloc_called = 0;//0 if false non zero if true
 struct memPool //TODO make this static?
 {
@@ -78,7 +77,8 @@ void *malloc(size_t size)
 
     //CREATION OF THE FREE TABLE
     if(malloc_called==0)//checks if this is the first time malloc has been called
-        {free_table=*(void**)sbrk(CHUNK_SIZE);malloc_called=1;//should make freetable stridable by 8.
+        {free_table=sbrk(CHUNK_SIZE);malloc_called=1;//should make freetable stridable by 8.
+            //as opposed to free_table=*((void**)sbrk(CHUNK_SIZE))
             for(int loc = 5; loc<13;loc++)
                 {
                     free_table[loc]=NULL;//SETS all free_table pools to NULL
@@ -88,7 +88,7 @@ void *malloc(size_t size)
 
     //ALLOCATION OF A NEW POOL
      size_t poolNum = 1<<block_index(sizeWithMeta);
-     unsigned long pool_size =pow(2,poolNum);
+     unsigned long pool_size =2<<poolNum;//POSSIBLE SOURCE OF ERROR
      int pools = CHUNK_SIZE/pool_size;
      if(free_table[poolNum]==NULL)//IF THIS POOL IS EMPTY 
         {
@@ -103,8 +103,7 @@ void *malloc(size_t size)
         }
     
     //ALLOCATION OF A NEW POOL
-     
-   //code for checking if free *((struct memPool*)free_table[poolNum]+i*pool_size)->avail & 0==0
+
      //THIS WILL NOT WORK IF THE POOL HAS HAD ALL BLOCKS ALLOCATED
      struct memPool *nodeToGive =((struct memPool*)free_table[poolNum]);
      
