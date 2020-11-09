@@ -1,5 +1,7 @@
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <math.h>
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -59,8 +61,63 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * You must implement malloc().  Your implementation of malloc() must be
  * the multi-pool allocator described in the project handout.
  */
-void *malloc(size_t size) {
-    return bulk_alloc(size);
+
+static void**free_table;//Aves free_table Global Static Variable reference
+static unsigned int malloc_called = 0;//0 if false non zero if true
+struct memPool //TODO make this static?
+{
+    struct memPool *next; // 8 byte pointer should come after prev
+    struct memPool *prev; // 8 byte pointer should come after avail
+    unsigned long avail;// 8 byte should come first
+};
+void *malloc(size_t size)
+{
+    size_t sizeWithMeta = size +8;
+    if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
+        {return bulk_alloc(size);}
+
+    //CREATION OF THE FREE TABLE
+    if(malloc_called==0)//checks if this is the first time malloc has been called
+        {free_table=*(void**)sbrk(CHUNK_SIZE);malloc_called=1;//should make freetable stridable by 8.
+            for(int loc = 5; loc<13;loc++)
+                {
+                    free_table[loc]=NULL;//SETS all free_table pools to NULL
+                }
+        }
+    //CREATION OF THE FREE TABLE
+
+    //ALLOCATION OF A NEW POOL
+     size_t poolNum = 1<<block_index(sizeWithMeta);
+     unsigned long pool_size =pow(2,poolNum);
+     int pools = CHUNK_SIZE/pool_size;
+     if(free_table[poolNum]==NULL)//IF THIS POOL IS EMPTY 
+        {
+            free_table[poolNum]=sbrk(CHUNK_SIZE);
+            for(int i=0;i<pools;i++)
+                {//((struct memPool*)free_table[poolNum]+i*pool_size) should cause memPool[poolNum]to point to first freshly freed block
+                    *((struct memPool*)free_table[poolNum]+i*pool_size)/*TODO will this stride 24??*/ = (struct memPool){NULL,NULL,size/*shouldnt need to be masked*/};//TODO ask a TA if this actually even would work
+                    if(i!=0){*((struct memPool*)free_table[poolNum]+i*pool_size)->prev=*((struct memPool*)free_table[poolNum]+(i-1)*pool_size);}
+                    if(i!=pools-1){*((struct memPool*)free_table[poolNum]+i*pool_size)->next=*((struct memPool*)free_table[poolNum]+(i+1)*pool_size);}
+                }
+            
+        }
+    
+    //ALLOCATION OF A NEW POOL
+     
+   //code for checking if free *((struct memPool*)free_table[poolNum]+i*pool_size)->avail & 0==0
+     //THIS WILL NOT WORK IF THE POOL HAS HAD ALL BLOCKS ALLOCATED
+     struct memPool *nodeToGive =((struct memPool*)free_table[poolNum]);
+     
+
+         
+     struct memPool *newHead =((struct memPool*)free_table[poolNum])->next;
+     newHead->prev=NULL;
+     
+     nodeToGive->prev=NULL;nodeToGive->next=NULL;
+     
+         
+     
+     return nodeToGive;
 }
 
 /*
