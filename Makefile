@@ -13,7 +13,7 @@ CFLAGS := -g -Wall -Werror -std=c99 -fPIC -D_DEFAULT_SOURCE
 # You can add tests to this list that will be compiled and run when you
 # invoke make test.  See the test and tests/% rules, below.
 TESTS := test_bulk test_simple_malloc
-NEWTEST := test_proto
+NEWTESTS := test_proto
 
 all: libcsemalloc.so
 

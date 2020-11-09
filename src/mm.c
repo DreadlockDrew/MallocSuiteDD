@@ -61,14 +61,22 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * the multi-pool allocator described in the project handout.
  */
 
-static void**  *free_table;//Aves free_table Global Static Variable reference
+
+struct freeTableSection
+{   
+    struct memPool *head;//8 bytes hopefully
+};
+
+static struct freeTableSection**  **free_table;//Aves free_table Global Static Variable reference
 static unsigned int malloc_called = 0;//0 if false non zero if true
+
 struct memPool //TODO make this static?
 {
     struct memPool *next; // 8 byte pointer should come after prev
     struct memPool *prev; // 8 byte pointer should come after avail
     unsigned long avail;// 8 byte should come first
 };
+
 void *malloc(size_t size)
 {
     size_t sizeWithMeta = size +8;
