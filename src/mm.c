@@ -61,14 +61,14 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * the multi-pool allocator described in the project handout.
  */
 
-static struct memPool**  **free_table;//Aves free_table Global Static Variable reference
+static struct memPool  **free_table;//Aves free_table Global Static Variable reference
 static unsigned int malloc_called = 0;//0 if false non zero if true
 
-struct memPool //TODO make this static?
+typedef struct memPool //TODO make this static?
 {   unsigned long avail;// 8 byte should come first
-    struct memPool *next; // 8 byte pointer should come after prev
-    struct memPool *prev; // 8 byte pointer should come after avail
-};
+    struct memPool *next; // 8 byte pointer should come first
+
+}block;
 
 void *malloc(size_t size)
 {
@@ -88,17 +88,22 @@ void *malloc(size_t size)
     //CREATION OF THE FREE TABLE
 
     //ALLOCATION OF A NEW POOL
-     size_t poolNum = 1<<block_index(sizeWithMeta);
+    size_t poolNum = block_index(sizeWithMeta);//returns the literal index you want in the array not a raw log
      unsigned long pool_size =2<<poolNum;//POSSIBLE SOURCE OF ERROR
      int pools = CHUNK_SIZE/pool_size;
-     if(free_table[poolNum]==NULL)//IF THIS POOL IS EMPTY 
+     
+     if(free_table[poolNum]==NULL)
         {
             free_table[poolNum]=sbrk(CHUNK_SIZE);
+            block *temp =free_table[poolNum];
             for(int i=0;i<pools;i++)
-                {//mempool***
-                    *(*free_table[poolNum]+i*pool_size)=(struct memPool){size,NULL,NULL/*shouldnt need to be masked*/}; 
-                    if(i!=0){*((struct memPool*)free_table[poolNum]+i*pool_size)->prev=*((struct memPool*)free_table[poolNum]+(i-1)*pool_size);}
-                    if(i!=pools-1){*((struct memPool*)free_table[poolNum]+i*pool_size)->next=*((struct memPool*)free_table[poolNum]+(i+1)*pool_size);}
+                { *free_table[poolNum]=(struct memPool){size,NULL};
+
+                    *free_table[poolNum]+i*pool_size=(struct memPool){size,NULL};
+
+            
+                    /*if(i!=0){*((struct memPool*)free_table[poolNum]+i*pool_size)->prev=*((struct memPool*)free_table[poolNum]+(i-1)*pool_size);}*/
+ 
                 }
             
         }
