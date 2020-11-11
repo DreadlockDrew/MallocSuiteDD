@@ -88,41 +88,31 @@ void *malloc(size_t size)
     //CREATION OF THE FREE TABLE
 
     //ALLOCATION OF A NEW POOL
-    size_t poolNum = block_index(sizeWithMeta);//returns the literal index you want in the array not a raw log
-     unsigned long pool_size =2<<poolNum;//POSSIBLE SOURCE OF ERROR
+    size_t poolNum = block_index(sizeWithMeta);
+    //returns the literal index you want in the array not a raw log
+     unsigned long pool_size =2<<poolNum;
      int pools = CHUNK_SIZE/pool_size;
-     
+
      if(free_table[poolNum]==NULL)
-        {
-            free_table[poolNum]=sbrk(CHUNK_SIZE);
-            block *temp =free_table[poolNum];
-            for(int i=0;i<pools;i++)
-                { *free_table[poolNum]=(struct memPool){size,NULL};
-
-                    *free_table[poolNum]+i*pool_size=(struct memPool){size,NULL};
-
-            
-                    /*if(i!=0){*((struct memPool*)free_table[poolNum]+i*pool_size)->prev=*((struct memPool*)free_table[poolNum]+(i-1)*pool_size);}*/
- 
-                }
-            
-        }
-    
-    //ALLOCATION OF A NEW POOL
-
-     //THIS WILL NOT WORK IF THE POOL HAS HAD ALL BLOCKS ALLOCATED
-     struct memPool *nodeToGive =((struct memPool*)free_table[poolNum]);
+         {
+             free_table[poolNum]=sbrk(CHUNK_SIZE);
+             void *stridingForkLift = free_table[poolNum];//ByteWise Strider
+             for(int i=0;i<pools;i++)
+                 {
+                  *((struct memPool*)(stridingForkLift+pools*pool_size))=(struct memPool){pool_size,NULL};//sets one 
+                     if(i!=0)
+                         {//THIS GOES TO THE PREVIOUS ADRESS AND SETS ITS NEXT TO THE CURRENT POOL
+                             *((struct memPool*)(stridingForkLift+pools-1*pool_size))->next=
+                                 *((struct memPool*)(stridingForkLift+pools*pool_size));
+                         }
+                  }
+         }//this should also cover the case of all blocks being allocated.
      
 
-         
-     struct memPool *newHead =((struct memPool*)free_table[poolNum])->next;
-     newHead->prev=NULL;
-     
-     nodeToGive->prev=NULL;nodeToGive->next=NULL;
-     
-         
-     
-     return nodeToGive;
+     struct memPool* NodeToGive=free_table[poolNum];
+     unsigned long  mask=0x01;
+     NodeToGive->avail=NodeToGive->avail | mask;
+     return NodeToGive;
 }
 
 /*
