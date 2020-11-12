@@ -62,14 +62,16 @@ static inline __attribute__((unused)) int block_index(size_t x) {
  * the multi-pool allocator described in the project handout.
  */
 
-static struct memPool  **free_table;//Aves free_table Global Static Variable reference
-static unsigned int malloc_called = 0;//0 if false non zero if true
 
-typedef struct memPool //TODO make this static?
+static size_t malloc_called = 0;//0 if false non zero if true
+
+struct block //TODO make this static?
 {   size_t avail;// 8 byte should come first
-    struct memPool *next;// should come next
+    struct block *next;// should come next
 
-}block;
+};
+
+ struct block **free_table;//Aves free_table Global Static Variable reference
 
 void *malloc(size_t size)
 {
@@ -93,11 +95,11 @@ void *malloc(size_t size)
     int pools = CHUNK_SIZE/pool_size;
     if(free_table[poolNum]==NULL)
         {  void *stridingForklift=sbrk(CHUNK_SIZE);
-            struct memPool* lastHead=stridingForklift;
+            struct block* lastHead=stridingForklift;
             for(int i=0;i<pools;i++)
                 {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
                     lastHead=stridingForklift;
-                    *lastHead=(struct memPool){pool_size,free_table[poolNum]};
+                    *lastHead=(struct block){pool_size,free_table[poolNum]};
                     free_table[poolNum]=lastHead;
                     stridingForklift=stridingForklift+ pool_size;
                     //this is fine because I take for granted that free_table[poolnum] points to null this could cause an infinite LOOP tho
@@ -105,10 +107,10 @@ void *malloc(size_t size)
         }
 
 
-    struct memPool* NodeToGive=free_table[poolNum];
-    size_t mask=0x01;
-    NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
-    return NodeToGive;
+     struct block* NodeToGive=free_table[poolNum];
+     size_t mask=0x01;
+     NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
+     return NodeToGive;
 }
 
 /*
