@@ -1,7 +1,7 @@
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <math.h>
+#include <stdio.h>
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -77,9 +77,11 @@ void *malloc(size_t size)
 {
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
         {return bulk_alloc(size);}
+    if(size==0){return NULL;}
 
-    //CREATION OF THE FREE TABLE
     
+    //CREATION OF THE FREE TABLE
+    //fprintf(stderr,"\n CREATING FREE TABLE \n");
     if(malloc_called==0)//checks if this is the first time malloc has been called
         {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
@@ -90,16 +92,18 @@ void *malloc(size_t size)
     //CREATION OF THE FREE TABLE
 
     //ALLOCATION OF A NEW POOL
-    size_t poolNum = 1<< block_index(size);
-    size_t pool_size =1<<poolNum;
-    int pools = CHUNK_SIZE/pool_size;
+    size_t poolNum = block_index(size);
     
+    size_t pool_size =(1<< block_index(size));
+    
+    int pools = CHUNK_SIZE/pool_size;
+    //fprintf(stderr,"ALLOCATING A NEW POOL OF %ld size asked for was %ld, base power was 2^%ld \n",pool_size,size,poolNum);
     if(free_table[poolNum]==NULL)
         {  void *stridingForklift=sbrk(CHUNK_SIZE);
             struct block* lastHead=(block*)stridingForklift;
             
             for(int i=0;i<pools;i++)
-                {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
+                {
                     lastHead=(block*)stridingForklift;
                     lastHead->avail=pool_size;lastHead->next=free_table[poolNum];
                     free_table[poolNum]=lastHead;
@@ -111,6 +115,7 @@ void *malloc(size_t size)
      struct block* NodeToGive=free_table[poolNum];
      size_t mask=0x01;
      NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
+     NodeToGive=NodeToGive+8;
      return NodeToGive;
 }
 

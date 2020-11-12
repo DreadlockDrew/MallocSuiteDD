@@ -70,7 +70,7 @@ malloc.tar: src/mm.c
 	$(CC) -o $@ $^
 
 clean:
-	rm -f $(TESTS) libcsemalloc.so malloc.tar
+	rm -f $(TESTS) $(NEWTESTS) libcsemalloc.so malloc.tar
 	rm -f src/*.o tests/*.o *~ src/*~ tests/*~
 
 # See previous assignments for a description of .PHONY
