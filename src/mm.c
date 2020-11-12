@@ -65,13 +65,13 @@ static inline __attribute__((unused)) int block_index(size_t x) {
 
 static size_t malloc_called = 0;//0 if false non zero if true
 
-struct block //TODO make this static?
+typedef struct block //TODO make this static?
 {   size_t avail;// 8 byte should come first
     struct block *next;// should come next
 
-};
+}block;
 
- struct block **free_table;//Aves free_table Global Static Variable reference
+static block **free_table;//Aves free_table Global Static Variable reference
 
 void *malloc(size_t size)
 {
@@ -90,19 +90,19 @@ void *malloc(size_t size)
 
     //ALLOCATION OF A NEW POOL
     size_t poolNum = 1<< block_index(size);
-    //returns the literal index you want in the array not a raw log
     size_t pool_size =1<<poolNum;
     int pools = CHUNK_SIZE/pool_size;
+    
     if(free_table[poolNum]==NULL)
         {  void *stridingForklift=sbrk(CHUNK_SIZE);
             struct block* lastHead=stridingForklift;
+            
             for(int i=0;i<pools;i++)
                 {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
                     lastHead=stridingForklift;
                     *lastHead=(struct block){pool_size,free_table[poolNum]};
                     free_table[poolNum]=lastHead;
                     stridingForklift=stridingForklift+ pool_size;
-                    //this is fine because I take for granted that free_table[poolnum] points to null this could cause an infinite LOOP tho
                 }
         }
 
