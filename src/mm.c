@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -72,7 +73,6 @@ typedef struct memPool //TODO make this static?
 
 void *malloc(size_t size)
 {
-    size_t sizeWithMeta = size +8;
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
         {return bulk_alloc(size);}
 
@@ -88,26 +88,38 @@ void *malloc(size_t size)
     //CREATION OF THE FREE TABLE
 
     //ALLOCATION OF A NEW POOL
-    size_t poolNum = block_index(sizeWithMeta);
+    /*size_t bytesNeeded = ( log(size)/ log(2) );
+    
+    if(size % 2 !=0) bytesNeeded = bytesNeeded << 1;*/
+    
+    size_t poolNum = 1<< block_index(size);
     //returns the literal index you want in the array not a raw log
-     unsigned long pool_size =2<<poolNum;
+     unsigned long pool_size =1<<poolNum;
      int pools = CHUNK_SIZE/pool_size;
 
      if(free_table[poolNum]==NULL)
-         {
+         { /*
              free_table[poolNum]=sbrk(CHUNK_SIZE);
              void *stridingForkLift = free_table[poolNum];//ByteWise Strider
+           */
+             void *stridingForklift=sbrk(CHUNK_SIZE);
+
+             struct memPool* lastHead=stridingForklift;
+             
+
+             
              for(int i=0;i<pools;i++)
-                 {
-                  *((struct memPool*)(stridingForkLift+pools*pool_size))=(struct memPool){pool_size,NULL};//sets one 
-                     if(i!=0)
-                         {//THIS GOES TO THE PREVIOUS ADRESS AND SETS ITS NEXT TO THE CURRENT POOL
-                             *((struct memPool*)(stridingForkLift+pools-1*pool_size))->next=
-                                 *((struct memPool*)(stridingForkLift+pools*pool_size));
-                         }
-                  }
-         }//this should also cover the case of all blocks being allocated.
-     
+                 {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
+                      
+                      lastHead=stridingForklift;
+                      *lastHead=(struct memPool){pool_size,free_table[poolNum]};
+                      free_table[poolNum]=lastHead;
+                      stridingForklift=stridingForklift+ pool_size;
+                 //this is fine because I take for granted that free_table[poolnum] points to null this could cause an infinite LOOP tho
+
+                 }
+             }
+
 
      struct memPool* NodeToGive=free_table[poolNum];
      unsigned long  mask=0x01;
