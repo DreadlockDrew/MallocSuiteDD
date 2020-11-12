@@ -66,8 +66,8 @@ static struct memPool  **free_table;//Aves free_table Global Static Variable ref
 static unsigned int malloc_called = 0;//0 if false non zero if true
 
 typedef struct memPool //TODO make this static?
-{   unsigned long avail;// 8 byte should come first
-    struct memPool *next; // 8 byte pointer should come first
+{   size_t avail;// 8 byte should come first
+    struct memPool *next;// should come next
 
 }block;
 
@@ -78,8 +78,7 @@ void *malloc(size_t size)
 
     //CREATION OF THE FREE TABLE
     if(malloc_called==0)//checks if this is the first time malloc has been called
-        {free_table=sbrk(CHUNK_SIZE);malloc_called=1;//should make freetable stridable by 8.
-            //as opposed to free_table=*((void**)sbrk(CHUNK_SIZE))
+        {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
                 {
                     free_table[loc]=NULL;//SETS all free_table pools to NULL
@@ -88,43 +87,28 @@ void *malloc(size_t size)
     //CREATION OF THE FREE TABLE
 
     //ALLOCATION OF A NEW POOL
-    /*size_t bytesNeeded = ( log(size)/ log(2) );
-    
-    if(size % 2 !=0) bytesNeeded = bytesNeeded << 1;*/
-    
     size_t poolNum = 1<< block_index(size);
     //returns the literal index you want in the array not a raw log
-     unsigned long pool_size =1<<poolNum;
-     int pools = CHUNK_SIZE/pool_size;
-
-     if(free_table[poolNum]==NULL)
-         { /*
-             free_table[poolNum]=sbrk(CHUNK_SIZE);
-             void *stridingForkLift = free_table[poolNum];//ByteWise Strider
-           */
-             void *stridingForklift=sbrk(CHUNK_SIZE);
-
-             struct memPool* lastHead=stridingForklift;
-             
-
-             
-             for(int i=0;i<pools;i++)
-                 {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
-                      
-                      lastHead=stridingForklift;
-                      *lastHead=(struct memPool){pool_size,free_table[poolNum]};
-                      free_table[poolNum]=lastHead;
-                      stridingForklift=stridingForklift+ pool_size;
-                 //this is fine because I take for granted that free_table[poolnum] points to null this could cause an infinite LOOP tho
-
-                 }
-             }
+    size_t pool_size =1<<poolNum;
+    int pools = CHUNK_SIZE/pool_size;
+    if(free_table[poolNum]==NULL)
+        {  void *stridingForklift=sbrk(CHUNK_SIZE);
+            struct memPool* lastHead=stridingForklift;
+            for(int i=0;i<pools;i++)
+                {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
+                    lastHead=stridingForklift;
+                    *lastHead=(struct memPool){pool_size,free_table[poolNum]};
+                    free_table[poolNum]=lastHead;
+                    stridingForklift=stridingForklift+ pool_size;
+                    //this is fine because I take for granted that free_table[poolnum] points to null this could cause an infinite LOOP tho
+                }
+        }
 
 
-     struct memPool* NodeToGive=free_table[poolNum];
-     unsigned long  mask=0x01;
-     NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
-     return NodeToGive;
+    struct memPool* NodeToGive=free_table[poolNum];
+    size_t mask=0x01;
+    NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
+    return NodeToGive;
 }
 
 /*
