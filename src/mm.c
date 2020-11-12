@@ -123,7 +123,7 @@ void *malloc(size_t size)
 
      struct memPool* NodeToGive=free_table[poolNum];
      unsigned long  mask=0x01;
-     NodeToGive->avail=NodeToGive->avail | mask;
+     NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
      return NodeToGive;
 }
 
