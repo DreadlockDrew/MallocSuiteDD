@@ -79,6 +79,7 @@ void *malloc(size_t size)
         {return bulk_alloc(size);}
 
     //CREATION OF THE FREE TABLE
+    
     if(malloc_called==0)//checks if this is the first time malloc has been called
         {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
@@ -95,12 +96,12 @@ void *malloc(size_t size)
     
     if(free_table[poolNum]==NULL)
         {  void *stridingForklift=sbrk(CHUNK_SIZE);
-            struct block* lastHead=stridingForklift;
+            struct block* lastHead=(block*)stridingForklift;
             
             for(int i=0;i<pools;i++)
                 {//free_table[poolNum]LITTERARLY ALWAYS STARTS AS NULL USE THIS
-                    lastHead=stridingForklift;
-                    *lastHead=(struct block){pool_size,free_table[poolNum]};
+                    lastHead=(block*)stridingForklift;
+                    lastHead->avail=pool_size;lastHead->next=free_table[poolNum];
                     free_table[poolNum]=lastHead;
                     stridingForklift=stridingForklift+ pool_size;
                 }
