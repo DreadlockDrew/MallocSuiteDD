@@ -74,14 +74,16 @@ typedef struct block //TODO make this static?
 static block **free_table;//Aves free_table Global Static Variable reference
 
 void *malloc(size_t size)
-{
+{   int debugMode=0;
+    
+    if(debugMode==1){{fprintf(stderr,"\n DEBUG MODE --------- \n");}}
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
         {return bulk_alloc(size);}
     if(size==0){return NULL;}
 
     
     //CREATION OF THE FREE TABLE
-    //fprintf(stderr,"\n CREATING FREE TABLE \n");
+    if (debugMode==1)
     if(malloc_called==0)//checks if this is the first time malloc has been called
         {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
@@ -97,25 +99,43 @@ void *malloc(size_t size)
     size_t pool_size =(1<< block_index(size));
     
     int pools = CHUNK_SIZE/pool_size;
-    //fprintf(stderr,"ALLOCATING A NEW POOL OF %ld size asked for was %ld, base power was 2^%ld \n",pool_size,size,poolNum);
+    
     if(free_table[poolNum]==NULL)
-        {  void *stridingForklift=sbrk(CHUNK_SIZE);
+        {if(debugMode==1){fprintf(stderr,"ALLOCATING A NEW POOL OF %ld. original size asked for was %ld, base power was 2^%ld \n",pool_size,size,poolNum);}
+
+
+            
+            void *stridingForklift=sbrk(CHUNK_SIZE);
             struct block* lastHead=(block*)stridingForklift;
             
-            for(int i=0;i<pools;i++)
+            if(debugMode==1){fprintf(stderr,"setting head at %p \n",lastHead);
+                fprintf(stderr,"setting forklift at  %p \n",stridingForklift);}
+            
+                        for(int i=0;i<pools;i++)
                 {
                     lastHead=(block*)stridingForklift;
-                    lastHead->avail=pool_size;lastHead->next=free_table[poolNum];
+                    lastHead->avail=pool_size;lastHead->next=free_table[poolNum];            
                     free_table[poolNum]=lastHead;
                     stridingForklift=stridingForklift+ pool_size;
+                    if(debugMode==1)
+                        {fprintf(stderr,"block at  %p with next %p \n",lastHead,lastHead->next);
+                            fprintf(stderr,"but the free tables head was %p \n",free_table[poolNum]);}
                 }
         }
 
-
+    
      struct block* NodeToGive=free_table[poolNum];
+     if(debugMode==1){fprintf(stderr,"returning block %p, which was of size %ld \n",NodeToGive,NodeToGive->avail);}
+     free_table[poolNum]=NodeToGive->next;
+     if (debugMode==1){fprintf(stderr,"\n as a result of this %p, is the new head \n",free_table[poolNum]);}
      size_t mask=0x01;
-     NodeToGive->avail=NodeToGive->avail | mask;//MARKS IT AS USED
-     NodeToGive=NodeToGive+8;
+     NodeToGive->avail=NodeToGive->avail ^  mask;//MARKS IT AS USED
+     if(debugMode==1){fprintf(stderr,"\n this blocks allocation status is %ld where a 1 resolves to it being allocated \n",NodeToGive->avail & 1 );}
+     NodeToGive=(void*)NodeToGive+8;
+     if(debugMode==1){fprintf(stderr,"\n the user received %p as the given pointer \n",NodeToGive);}
+     
+     
+     if(debugMode==1){fprintf(stderr,"DEBUG MODE ENDED\n _______ \n");}
      return NodeToGive;
 }
 
