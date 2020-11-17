@@ -1,7 +1,8 @@
 #include <string.h>
 #include <unistd.h>
-#include <math.h>
 #include <stdio.h>
+#include <math.h>
+
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -73,17 +74,26 @@ typedef struct block //TODO make this static?
 
 static block **free_table;//Aves free_table Global Static Variable reference
 
+//TODO inquire over bulk malloc 3.4
 void *malloc(size_t size)
-{   int debugMode=0;
-    
+{   if(size==0){return NULL;}
+
+    int debugMode=0;
     if(debugMode==1){{fprintf(stderr,"\n DEBUG MODE --------- \n");}}
+
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
-        {return bulk_alloc(size);}
-    if(size==0){return NULL;}
+        {   int sizeAndMeta= size+8;
+            void  *NodeToGive= bulk_alloc(sizeAndMeta);
+            *((size_t*)NodeToGive)=(size)^1;//sets size+allocation flag bit  TODOTODOTODO Is this correct form.
+            return (void*)(NodeToGive+8);// TODO are we returning its size+8
+
+
+        }// size + 8 via handout 3.4
+    
 
     
     //CREATION OF THE FREE TABLE
-    if (debugMode==1)
+    
     if(malloc_called==0)//checks if this is the first time malloc has been called
         {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
@@ -101,10 +111,9 @@ void *malloc(size_t size)
     int pools = CHUNK_SIZE/pool_size;
     
     if(free_table[poolNum]==NULL)
-        {if(debugMode==1){fprintf(stderr,"ALLOCATING A NEW POOL OF %ld. original size asked for was %ld, base power was 2^%ld \n",pool_size,size,poolNum);}
-
-
-            
+        {
+            if(debugMode==1)
+                {fprintf(stderr,"ALLOCATING A NEW POOL OF %ld. original size asked for was %ld, base power was 2^%ld \n",pool_size,size,poolNum);}      
             void *stridingForklift=sbrk(CHUNK_SIZE);
             struct block* lastHead=(block*)stridingForklift;
             
@@ -151,9 +160,26 @@ void *malloc(size_t size)
  * for this (see man 3 memset).
  */
 void *calloc(size_t nmemb, size_t size) {
-    void *ptr = bulk_alloc(nmemb * size);
-    memset(ptr, 0, nmemb * size);
-    return ptr;
+    if(nmemb==0||size==0)
+        {return NULL;}
+
+    size_t trueSize = nmemb * size;
+    
+    void *NodeToGive=malloc(trueSize);
+    void *strider=NodeToGive;
+    for(size_t i = 0; i<trueSize;i++)
+        {
+         *((char*)strider)='\0';
+         strider=strider+1;
+        }
+    
+/*
+      void *ptr = bulk_alloc(nmemb * size);
+      memset(ptr, 0, nmemb * size);
+*/
+
+    
+    return NodeToGive;
 }
 
 /*
@@ -169,8 +195,32 @@ void *calloc(size_t nmemb, size_t size) {
  * implementation!
  */
 void *realloc(void *ptr, size_t size) {
-    fprintf(stderr, "Realloc is not implemented!\n");
-    return NULL;
+        if(size==0)
+        {return NULL;}
+        
+        struct block* NodeToTake=(void*)(ptr-8);
+        NodeToTake->avail=NodeToTake-> avail ^ 1;
+        fprintf(stderr,"had a pointer %ld where %ld are usable. \n",(size_t)(NodeToTake->avail),(size_t)(NodeToTake->avail-8));
+        fprintf(stderr,"but you asked for %ld bytes  \n",size);
+        if(size<=NodeToTake->avail-8)//TODO CAN WE USE SAME POINTER ON EQUAL AMOUNT AND SHOULD IT BE size<=avail-8
+            {fprintf(stderr,"so im going to give you your pointer back sorry. \n");
+            NodeToTake->avail=NodeToTake-> avail ^ 1;
+            return ptr;}
+
+    //EXECUTING CASE WERE WE ACTUALLY NEED A NEW ALLOCATION.
+    void *newptr=malloc(size);
+
+
+    for(unsigned int pos=0;pos<NodeToTake->avail;pos++)
+        {
+            *((char*)newptr+pos)=*((char*)ptr+pos);
+        }
+    struct block* temp = (void*)(newptr-8);
+    size_t finalSize= temp->avail ^ 1;
+    NodeToTake->avail=NodeToTake-> avail ^ 1;
+    fprintf(stderr,"so ill free the pointer with %ld bytes and give you this one with %ld bytes instead \n",NodeToTake->avail-1,finalSize);
+    free(ptr);
+    return newptr;
 }
 
 /*
@@ -180,6 +230,27 @@ void *realloc(void *ptr, size_t size) {
  *
  * The given implementation does nothing.
  */
-void free(void *ptr) {
+void free(void *ptr)//NOT REQUIRED TO HANDLE BULK FREEINGS
+{  // fprintf(stderr,"\n Node %p received\n",&ptr);
+    if(ptr==NULL){return;}
+
+    struct block* NodeToTake=(void*)(ptr-8);//we go back to that metadata
+    size_t freeOrUsed =NodeToTake->avail &1;
+    
+    if (freeOrUsed != 1)
+        {fprintf(stderr,"pointer %p which has metadata at %p not designated as allocated. undefined behavior and \n",ptr,ptr-8);
+         fprintf(stderr,"The status of this %ld size block is %ld",NodeToTake->avail ^1,NodeToTake->avail & 1);
+        }
+    NodeToTake->avail=NodeToTake-> avail ^ 1;
+
+    if(NodeToTake->avail>4088)//Throw request to the bulk allocator and then duck
+        {bulk_free(ptr, NodeToTake->avail);return;}
+    
+    size_t relevantIndex=block_index(NodeToTake->avail-8);
+    //fprintf(stderr," index was %ld\n",relevantIndex);
+    NodeToTake->next=free_table[relevantIndex];
+    // fprintf(stderr,"\n head was pointing to %p so we set nodeToTake's->next value to %p \n",free_table[relevantIndex],NodeToTake->next);
+    free_table[relevantIndex]=(void*)NodeToTake;
+    //fprintf(stderr,"\n head of pool %d is now pointing to %p",1<< relevantIndex,free_table[relevantIndex]);
     return;
 }

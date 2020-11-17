@@ -13,7 +13,7 @@ CFLAGS := -g -Wall -Werror -std=c99 -fPIC -D_DEFAULT_SOURCE
 # You can add tests to this list that will be compiled and run when you
 # invoke make test.  See the test and tests/% rules, below.
 TESTS := test_bulk test_simple_malloc
-NEWTESTS := test_proto
+NEWTESTS := test_malloc_varied_insert test_single_malloc_deref test_malloc_overflow test_single_malloc_deref test_free_ptr
 
 all: libcsemalloc.so
 
@@ -71,7 +71,7 @@ malloc.tar: src/mm.c
 
 clean:
 	rm -f $(TESTS) $(NEWTESTS) libcsemalloc.so malloc.tar
-	rm -f src/*.o tests/*.o *~ src/*~ tests/*~
+	rm -f src/*.o tests/*.o *~ src/*~ tests/*~ src/test_*
 
 # See previous assignments for a description of .PHONY
 .PHONY: all clean submission test

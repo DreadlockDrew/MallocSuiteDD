@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+
+//This test ensures that pointers dereferenced by
+//malloc actually return usuable pointers that do not segfault on access
 int main(int argc, char *argv[])
 {
     void *p1 ;
