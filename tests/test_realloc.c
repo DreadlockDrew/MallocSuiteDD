@@ -38,5 +38,7 @@ int main(int argc, char *argv[])
                 {fprintf(stderr," p1[%ld] resolved to %ld expected %ld \n",run,p1[run],run);return 1;}
         }
 
+    p2=realloc(p1,requestSize*698);
+    if(*p2!=*p1){fprintf(stderr,"pointer reduction failure");return 1;}
 return 0;
 }

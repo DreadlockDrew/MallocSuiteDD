@@ -76,7 +76,8 @@ static block **free_table;//Aves free_table Global Static Variable reference
 
 //TODO inquire over bulk malloc 3.4
 void *malloc(size_t size)
-{   if(size==0){return NULL;}
+{{fprintf(stderr,"\n MALLOC %ld \n",size);}
+    if(size==0){return NULL;}
 
     int debugMode=0;
     if(debugMode==1){{fprintf(stderr,"\n DEBUG MODE --------- \n");}}
@@ -84,17 +85,13 @@ void *malloc(size_t size)
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
         {   size_t sizeAndMeta= size+8;
             void  *NodeToGive= bulk_alloc(sizeAndMeta);
-            *((size_t*)NodeToGive)=(size)^1;//sets size+allocation flag bit  TODOTODOTODO Is this correct form.
-            return (void*)(NodeToGive+8);// TODO are we returning its size+8
+            *((size_t*)NodeToGive)=(size)^1;
+            return (void*)(NodeToGive+8);
 
 
-        }// size + 8 via handout 3.4
-    
-
-    
+        }
     //CREATION OF THE FREE TABLE
-    
-    if(malloc_called==0)//checks if this is the first time malloc has been called
+     if(malloc_called==0)//checks if this is the first time malloc has been called
         {free_table=sbrk(CHUNK_SIZE);malloc_called=1;
             for(int loc = 5; loc<13;loc++)
                 {
@@ -105,11 +102,8 @@ void *malloc(size_t size)
 
     //ALLOCATION OF A NEW POOL
     size_t poolNum = block_index(size);
-    
     size_t pool_size =(1<< block_index(size));
-    
     int pools = CHUNK_SIZE/pool_size;
-    
     if(free_table[poolNum]==NULL)
         {
             if(debugMode==1)
@@ -160,6 +154,7 @@ void *malloc(size_t size)
  * for this (see man 3 memset).
  */
 void *calloc(size_t nmemb, size_t size) {
+    fprintf(stderr,"\nCALLOC %ld\n",nmemb*size);
     if(nmemb==0||size==0)
         {return NULL;}
 
@@ -197,11 +192,17 @@ void *calloc(size_t nmemb, size_t size) {
  * implementation!
  */
 void *realloc(void *ptr, size_t size) {
-        if(size==0)
-        {return NULL;}
+    fprintf(stderr,"\nREALLOC, %ld\n",size);
+        if(size==0 && ptr!=NULL)
+            {free(ptr);return NULL;;}
+        if(size==0){return NULL;}
+        if(ptr==NULL)
+            {return malloc(size);}
+            
         
         struct block* NodeToTake=(void*)(ptr-8);
         NodeToTake->avail=NodeToTake-> avail ^ 1;
+        fprintf(stderr,"\n orig was was, %ld\n",NodeToTake->avail);
         //fprintf(stderr,"had a pointer %ld where %ld are usable. \n",(size_t)(NodeToTake->avail),(size_t)(NodeToTake->avail-8));
         //fprintf(stderr,"but you asked for %ld bytes  \n",size);
         if(size<=NodeToTake->avail-8)//TODO CAN WE USE SAME POINTER ON EQUAL AMOUNT AND SHOULD IT BE size<=avail-8
@@ -216,7 +217,7 @@ void *realloc(void *ptr, size_t size) {
     for(unsigned int pos=0;pos<(NodeToTake->avail-8);pos++)
         {//fprintf(stderr,"%d \n",pos);
             
-            *((char*)newptr+pos)=*((char*)(ptr+pos));//-8 because everything is copied
+            *((char*)newptr+pos)=*((char*)(ptr+pos));
             // fprintf(stderr,"ptr +pos =%d \n ",*((char*)ptr+pos));
         }
     //fprintf(stderr,"REALLOC2 \n");
@@ -236,21 +237,29 @@ void *realloc(void *ptr, size_t size) {
  *
  * The given implementation does nothing.
  */
-void free(void *ptr)//NOT REQUIRED TO HANDLE BULK FREEINGS
-{  // fprintf(stderr,"\n Node %p received\n",&ptr);
+void free(void *ptr)
+{ 
+    fprintf(stderr,"\nFREE, \n");
     if(ptr==NULL){return;}
 
     struct block* NodeToTake=(void*)(ptr-8);//we go back to that metadata
-    size_t freeOrUsed =NodeToTake->avail &1;
-    
+    size_t freeOrUsed =NodeToTake-> avail & 1; 
+    fprintf(stderr,"\n orig was, %ld\n",NodeToTake->avail);
     if (freeOrUsed != 1)
         {fprintf(stderr,"pointer %p which has metadata at %p not designated as allocated. undefined behavior and \n",ptr,ptr-8);
          fprintf(stderr,"The status of this %ld size block is %ld",NodeToTake->avail ^1,NodeToTake->avail & 1);
         }
-    NodeToTake->avail=NodeToTake-> avail ^ 1;
+   
 
-    if(NodeToTake->avail>4088)//Throw request to the bulk allocator and then duck
-        {bulk_free(ptr, NodeToTake->avail);return;}
+    if(((NodeToTake->avail)^1)>4088)//Throw request to the bulk allocator and then duck
+        {//NodeToTake->avail=NodeToTake-> avail ^ 1;
+            NodeToTake->avail=NodeToTake-> avail ^ 1;
+            fprintf(stderr,"calling bulk free for size %ld\n", (NodeToTake->avail+8));
+            
+            bulk_free(ptr,NodeToTake->avail+8);
+            return;
+        }
+     NodeToTake->avail=NodeToTake-> avail ^ 1;
     
     size_t relevantIndex=block_index(NodeToTake->avail-8);
     //fprintf(stderr," index was %ld\n",relevantIndex);
