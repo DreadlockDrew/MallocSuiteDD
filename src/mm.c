@@ -251,12 +251,12 @@ void free(void *ptr)
         }
    
 
-    if(((NodeToTake->avail)^1)>4088)//Throw request to the bulk allocator and then duck
+    if(((NodeToTake->avail)^1)>4096)//Throw request to the bulk allocator and then duck
         {//NodeToTake->avail=NodeToTake-> avail ^ 1;
             NodeToTake->avail=NodeToTake-> avail ^ 1;
             fprintf(stderr,"calling bulk free for size %ld\n", (NodeToTake->avail+8));
             
-            bulk_free(ptr,NodeToTake->avail+8);
+            bulk_free(NodeToTake,NodeToTake->avail+8);
             return;
         }
      NodeToTake->avail=NodeToTake-> avail ^ 1;
