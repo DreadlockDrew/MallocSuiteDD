@@ -82,7 +82,7 @@ void *malloc(size_t size)
     if(debugMode==1){{fprintf(stderr,"\n DEBUG MODE --------- \n");}}
 
     if(size>4088)//Throws this to the bulk allocator if its to big to deal with.
-        {   int sizeAndMeta= size+8;
+        {   size_t sizeAndMeta= size+8;
             void  *NodeToGive= bulk_alloc(sizeAndMeta);
             *((size_t*)NodeToGive)=(size)^1;//sets size+allocation flag bit  TODOTODOTODO Is this correct form.
             return (void*)(NodeToGive+8);// TODO are we returning its size+8
@@ -166,17 +166,19 @@ void *calloc(size_t nmemb, size_t size) {
     size_t trueSize = nmemb * size;
     
     void *NodeToGive=malloc(trueSize);
-    void *strider=NodeToGive;
+    size_t strider=(size_t)NodeToGive;
     for(size_t i = 0; i<trueSize;i++)
         {
-         *((char*)strider)='\0';
+            *((char*)strider)='\0';
+         // fprintf(stderr,"%ld ",*(size_t*)strider);
          strider=strider+1;
+         
         }
+    // fprintf(stderr,'\n :')
     
-/*
-      void *ptr = bulk_alloc(nmemb * size);
-      memset(ptr, 0, nmemb * size);
-*/
+
+    // memset(NodeToGive, 0, nmemb * size);
+
 
     
     return NodeToGive;
@@ -200,25 +202,29 @@ void *realloc(void *ptr, size_t size) {
         
         struct block* NodeToTake=(void*)(ptr-8);
         NodeToTake->avail=NodeToTake-> avail ^ 1;
-        fprintf(stderr,"had a pointer %ld where %ld are usable. \n",(size_t)(NodeToTake->avail),(size_t)(NodeToTake->avail-8));
-        fprintf(stderr,"but you asked for %ld bytes  \n",size);
+        //fprintf(stderr,"had a pointer %ld where %ld are usable. \n",(size_t)(NodeToTake->avail),(size_t)(NodeToTake->avail-8));
+        //fprintf(stderr,"but you asked for %ld bytes  \n",size);
         if(size<=NodeToTake->avail-8)//TODO CAN WE USE SAME POINTER ON EQUAL AMOUNT AND SHOULD IT BE size<=avail-8
-            {fprintf(stderr,"so im going to give you your pointer back sorry. \n");
+            {//fprintf(stderr,"so im going to give you your pointer back sorry. \n");
             NodeToTake->avail=NodeToTake-> avail ^ 1;
             return ptr;}
 
     //EXECUTING CASE WERE WE ACTUALLY NEED A NEW ALLOCATION.
     void *newptr=malloc(size);
 
-
-    for(unsigned int pos=0;pos<NodeToTake->avail;pos++)
-        {
-            *((char*)newptr+pos)=*((char*)ptr+pos);
+    //fprintf(stderr,"REALLOC1 \n");
+    for(unsigned int pos=0;pos<(NodeToTake->avail-8);pos++)
+        {//fprintf(stderr,"%d \n",pos);
+            
+            *((char*)newptr+pos)=*((char*)(ptr+pos));//-8 because everything is copied
+            // fprintf(stderr,"ptr +pos =%d \n ",*((char*)ptr+pos));
         }
-    struct block* temp = (void*)(newptr-8);
-    size_t finalSize= temp->avail ^ 1;
+    //fprintf(stderr,"REALLOC2 \n");
+    //struct block* temp = (void*)(newptr-8);
+    //size_t finalSize= temp->avail ^ 1;
     NodeToTake->avail=NodeToTake-> avail ^ 1;
-    fprintf(stderr,"so ill free the pointer with %ld bytes and give you this one with %ld bytes instead \n",NodeToTake->avail-1,finalSize);
+    //fprintf(stderr,"so ill free the pointer with %ld bytes and give you this one with %ld bytes instead \n",NodeToTake->avail-1,finalSize);
+    //fprintf(stderr,"returning a pointer of %ld size \n",*(size_t*)(newptr-8));
     free(ptr);
     return newptr;
 }
