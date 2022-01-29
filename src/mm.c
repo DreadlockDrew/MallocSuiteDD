@@ -4,52 +4,20 @@
 #include <math.h>
 
 
-/* The standard allocator interface from stdlib.h.  These are the
- * functions you must implement, more information on each function is
- * found below. They are declared here in case you want to use one
- * function in the implementation of another. */
+
 void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
 
-/* When requesting memory from the OS using sbrk(), request it in
- * increments of CHUNK_SIZE. */
 #define CHUNK_SIZE (1<<12)
 
-/*
- * This function, defined in bulk.c, allocates a contiguous memory
- * region of at least size bytes.  It MAY NOT BE USED as the allocator
- * for pool-allocated regions.  Memory allocated using bulk_alloc()
- * must be freed by bulk_free().
- *
- * This function will return NULL on failure.
- */
+
 extern void *bulk_alloc(size_t size);
 
-/*
- * This function is also defined in bulk.c, and it frees an allocation
- * created with bulk_alloc().  Note that the pointer passed to this
- * function MUST have been returned by bulk_alloc(), and the size MUST
- * be the same as the size passed to bulk_alloc() when that memory was
- * allocated.  Any other usage is likely to fail, and may crash your
- * program.
- */
+
 extern void bulk_free(void *ptr, size_t size);
 
-/*
- * This function computes the log base 2 of the allocation block size
- * for a given allocation.  To find the allocation block size from the
- * result of this function, use 1 << block_size(x).
- *
- * Note that its results are NOT meaningful for any
- * size > 4088!
- *
- * You do NOT need to understand how this function works.  If you are
- * curious, see the gcc info page and search for __builtin_clz; it
- * basically counts the number of leading binary zeroes in the value
- * passed as its argument.
- */
 static inline __attribute__((unused)) int block_index(size_t x) {
     if (x <= 8) {
         return 5;
@@ -58,17 +26,12 @@ static inline __attribute__((unused)) int block_index(size_t x) {
     }
 }
 
-/*
- * You must implement malloc().  Your implementation of malloc() must be
- * the multi-pool allocator described in the project handout.
- */
-
 
 static size_t malloc_called = 0;//0 if false non zero if true
 
 typedef struct block //TODO make this static?
-{   size_t avail;// 8 byte should come first
-    struct block *next;// should come next
+{   size_t avail;// 8 byte
+    struct block *next;
 
 }block;
 
@@ -142,17 +105,7 @@ void *malloc(size_t size)
      return NodeToGive;
 }
 
-/*
- * You must also implement calloc().  It should create allocations
- * compatible with those created by malloc().  In particular, any
- * allocations of a total size <= 4088 bytes must be pool allocated,
- * while larger allocations must use the bulk allocator.
- *
- * calloc() (see man 3 calloc) returns a cleared allocation large enough
- * to hold nmemb elements of size size.  It is cleared by setting every
- * byte of the allocation to 0.  You should use the function memset()
- * for this (see man 3 memset).
- */
+
 void *calloc(size_t nmemb, size_t size) {
     fprintf(stderr,"\nCALLOC %ld\n",nmemb*size);
     if(nmemb==0||size==0)
@@ -169,28 +122,13 @@ void *calloc(size_t nmemb, size_t size) {
          strider=strider+1;
          
         }
-    // fprintf(stderr,'\n :')
-    
-
-    // memset(NodeToGive, 0, nmemb * size);
 
 
     
     return NodeToGive;
 }
 
-/*
- * You must also implement realloc().  It should create allocations
- * compatible with those created by malloc(), honoring the pool
- * alocation and bulk allocation rules.  It must move data from the
- * previously-allocated block to the newly-allocated block if it cannot
- * resize the given block directly.  See man 3 realloc for more
- * information on what this means.
- *
- * It is not possible to implement realloc() using bulk_alloc() without
- * additional metadata, so the given code is NOT a working
- * implementation!
- */
+
 void *realloc(void *ptr, size_t size) {
     fprintf(stderr,"\nREALLOC, %ld\n",size);
         if(size==0 && ptr!=NULL)
@@ -203,40 +141,28 @@ void *realloc(void *ptr, size_t size) {
         struct block* NodeToTake=(void*)(ptr-8);
         NodeToTake->avail=NodeToTake-> avail ^ 1;
         fprintf(stderr,"\n orig was was, %ld\n",NodeToTake->avail);
-        //fprintf(stderr,"had a pointer %ld where %ld are usable. \n",(size_t)(NodeToTake->avail),(size_t)(NodeToTake->avail-8));
-        //fprintf(stderr,"but you asked for %ld bytes  \n",size);
-        if(size<=NodeToTake->avail-8)//TODO CAN WE USE SAME POINTER ON EQUAL AMOUNT AND SHOULD IT BE size<=avail-8
-            {//fprintf(stderr,"so im going to give you your pointer back sorry. \n");
+
+        if(size<=NodeToTake->avail-8)
+            {
             NodeToTake->avail=NodeToTake-> avail ^ 1;
             return ptr;}
 
-    //EXECUTING CASE WERE WE ACTUALLY NEED A NEW ALLOCATION.
+    //EXECUTING CASE WERE WE NEED A NEW ALLOCATION.
     void *newptr=malloc(size);
 
     //fprintf(stderr,"REALLOC1 \n");
     for(unsigned int pos=0;pos<(NodeToTake->avail-8);pos++)
-        {//fprintf(stderr,"%d \n",pos);
+        {
             
             *((char*)newptr+pos)=*((char*)(ptr+pos));
-            // fprintf(stderr,"ptr +pos =%d \n ",*((char*)ptr+pos));
         }
-    //fprintf(stderr,"REALLOC2 \n");
-    //struct block* temp = (void*)(newptr-8);
-    //size_t finalSize= temp->avail ^ 1;
+
     NodeToTake->avail=NodeToTake-> avail ^ 1;
-    //fprintf(stderr,"so ill free the pointer with %ld bytes and give you this one with %ld bytes instead \n",NodeToTake->avail-1,finalSize);
-    //fprintf(stderr,"returning a pointer of %ld size \n",*(size_t*)(newptr-8));
     free(ptr);
     return newptr;
 }
 
-/*
- * You should implement a free() that can successfully free a region of
- * memory allocated by any of the above allocation routines, whether it
- * is a pool- or bulk-allocated region.
- *
- * The given implementation does nothing.
- */
+
 void free(void *ptr)
 { 
     fprintf(stderr,"\nFREE, \n");
